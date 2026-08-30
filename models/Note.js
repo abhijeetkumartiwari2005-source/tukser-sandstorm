@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-const noteSchemsa=new mongoose.Schema(
+const noteSchema=new mongoose.Schema(
 {
     title: {
       type: String,
@@ -14,10 +14,16 @@ const noteSchemsa=new mongoose.Schema(
     isPinned: {
       type: Boolean,
       default: false
+    },
+    userId: {
+      type:mongoose.Schema.Types.ObjectId,
+      required:true,
+      index:true,
+      ref:'User'
     }
   },
   {
     timestamps: true 
   });
-  const Note=mongoose.model('Note',noteSchemsa);
+  const Note=mongoose.model('Note',noteSchema);
   export default Note;

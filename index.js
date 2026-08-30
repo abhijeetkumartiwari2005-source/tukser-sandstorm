@@ -16,13 +16,14 @@ app.get('/', (req, res) => {
 });
 
 // ===== POST - CREATE =====
-app.post('/notes', async (req, res) => {
+app.post('/notes',authMiddleware, async (req, res) => {
   try {
     const { title, body } = req.body;
     const newNote = new Note({
       title,
       body,
-      isPinned: false
+      isPinned: false,
+      userId: req.user.userId
     });
     await newNote.save();
     res.status(201).json(newNote);
@@ -32,9 +33,9 @@ app.post('/notes', async (req, res) => {
 });
 
 // ===== GET ALL =====
-app.get('/allnotes', async (req, res) => {
+app.get('/allnotes',authMiddleware, async (req, res) => {
   try {
-    const stuff = await Note.find();
+    const stuff = await Note.find({userId: req.user.userId});
     res.status(200).json(stuff);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -42,10 +43,12 @@ app.get('/allnotes', async (req, res) => {
 });
 
 // ===== GET BY ID =====
-app.get('/allnotes/:id', async (req, res) => {
+app.get('/allnotes/:id', authMiddleware, async (req, res) => {
   try {
     const id = req.params.id;
     const idstuff = await Note.findById(id);
+    if (!idstuff) return res.status(404).json({ error: "Note not found" });
+    if (idstuff.userId.toString() !== req.user.userId)return res.status(403).json({ error: "You don't have permission to access this note" });
     res.status(200).json(idstuff);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -53,29 +56,39 @@ app.get('/allnotes/:id', async (req, res) => {
 });
 
 // ===== PUT - UPDATE =====
-app.put('/allnotes/:id', async (req, res) => {
+app.put('/allnotes/:id', authMiddleware, async (req, res) => {
   try {
     const id = req.params.id;
+    const note = await Note.findById(id); 
+    if (!note) return res.status(404).json({ error: "Note not found" });
+    if (note.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ error: "You don't have permission to update this note" });
+    }
     
-    const idstuff = await Note.findByIdAndUpdate(id,req.body,{new:true});
-    res.status(200).json(idstuff);
-   } catch (error) {
+    const updatedNote = await Note.findByIdAndUpdate(id, req.body, {new:true});
+    res.status(200).json(updatedNote);
+  } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
 // ===== DELETE =====
-app.delete('/allnotes/:id', async (req, res) => {
+app.delete('/allnotes/:id' , authMiddleware, async (req, res) => {
   try {
    const id = req.params.id;
-    const idstuff = await Note.findByIdAndDelete(id);
+   const note = await Note.findById(id);
+   if(!note) return res.status(404).json({ error: "Note not found" });
+   if(note.userId.toString()!== req.user.userId) {
+      return res.status(403).json({ error: "You don't have permission to delete this note" });
+    }
+   const idstuff = await Note.findByIdAndDelete(id);
     res.status(200).json( {message: "Note deleted successfully"});
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-// ====authentication stuff====
-app.post('/auth/signup', async (req, res) => {
+// ====signup====
+app.post('/auth/signup' ,  async (req, res) => {
   try {
     const { email, password } = req.body;
     console.log('Received email:', email); 
@@ -91,7 +104,7 @@ app.post('/auth/signup', async (req, res) => {
   }
 });
 //==login==
-app.post('/auth/login', async (req, res) => {
+app.post('/auth/login' ,  async (req, res) => {
   try {
     const { email, password } = req.body;
     if(!email) return res.status(401).json({error:error.message});
