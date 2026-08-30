@@ -19,12 +19,16 @@ app.get('/', (req, res) => {
 app.post('/notes',authMiddleware, async (req, res) => {
   try {
     const { title, body } = req.body;
+        if(!title.trim()) return res.status(400).json({ error: "title doesn't exist" });
+    if(title.trim().length>100) return res.status(400).json({ error: "title too long" });
+    if(!body.trim()) return res.status(400).json({ error: "body doesn't exist" });
     const newNote = new Note({
-      title,
-      body,
+      title: title.trim(),
+      body: body.trim(),
       isPinned: false,
       userId: req.user.userId
     });
+
     await newNote.save();
     res.status(201).json(newNote);
   } catch (error) {
@@ -64,6 +68,13 @@ app.put('/allnotes/:id', authMiddleware, async (req, res) => {
     if (note.userId.toString() !== req.user.userId) {
       return res.status(403).json({ error: "You don't have permission to update this note" });
     }
+if (req.body.title !== undefined) {
+  if (!req.body.title.trim()) return res.status(400).json({ error: "Title cannot be empty" });
+  if (req.body.title.trim().length > 100) return res.status(400).json({ error: "Title too long" });
+}
+if (req.body.body !== undefined) {
+  if (!req.body.body.trim()) return res.status(400).json({ error: "Body cannot be empty" });
+}
     
     const updatedNote = await Note.findByIdAndUpdate(id, req.body, {new:true});
     res.status(200).json(updatedNote);
@@ -73,16 +84,17 @@ app.put('/allnotes/:id', authMiddleware, async (req, res) => {
 });
 
 // ===== DELETE =====
-app.delete('/allnotes/:id' , authMiddleware, async (req, res) => {
+app.delete('/allnotes/:id', authMiddleware, async (req, res) => {
   try {
-   const id = req.params.id;
-   const note = await Note.findById(id);
-   if(!note) return res.status(404).json({ error: "Note not found" });
-   if(note.userId.toString()!== req.user.userId) {
+    const id = req.params.id;
+    const note = await Note.findById(id);
+    if (!note) return res.status(404).json({ error: "Note not found" });
+    if (note.userId.toString() !== req.user.userId) {
       return res.status(403).json({ error: "You don't have permission to delete this note" });
     }
-   const idstuff = await Note.findByIdAndDelete(id);
-    res.status(200).json( {message: "Note deleted successfully"});
+    
+    await Note.findByIdAndDelete(id);
+    res.status(200).json({ message: "Note deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -91,6 +103,8 @@ app.delete('/allnotes/:id' , authMiddleware, async (req, res) => {
 app.post('/auth/signup' ,  async (req, res) => {
   try {
     const { email, password } = req.body;
+     if (!email || !email.trim()) return res.status(400).json({ error: "Email required" });
+    if (!password || password.length < 8) return res.status(400).json({ error: "Password must be 8+ chars" });
     console.log('Received email:', email); 
     const existingUser= await User.findOne({email});
     if(existingUser) return res.status(400).json({error: "user laready exists"});
@@ -107,7 +121,8 @@ app.post('/auth/signup' ,  async (req, res) => {
 app.post('/auth/login' ,  async (req, res) => {
   try {
     const { email, password } = req.body;
-    if(!email) return res.status(401).json({error:error.message});
+    if (!email || !email.trim()) return res.status(400).json({ error: "Email required" });
+    if (!password) return res.status(400).json({ error: "Password required" });
     const user = await User.findOne({ email });
     if(!user) return res.status(401).json({error:"user not found"});
     if(!(await user.comparePassword(password))) return res.status(401).json({error:"wrong password"});
