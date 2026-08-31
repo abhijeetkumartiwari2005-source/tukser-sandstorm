@@ -5,11 +5,17 @@ import Note from './models/Note.js';
 import User from './models/user.js';
 import jwt from 'jsonwebtoken';
 import authMiddleware from './middleware/auth.js'
+import noteSchema from './schemas/noteSchema.js'; 
+import emailQueue from './queues/emailQueue.js';
+import {createServer} from 'http';
+import {Server} from 'socket.io';
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 connectDB();
 app.use(express.json());
+
+
 
 app.get('/', (req, res) => {
   res.status(200).send('API is running and connected!');
@@ -149,8 +155,31 @@ app.get('/profile', authMiddleware , (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+//==email sending==
+app.post('/send-campaign', async (req, res) => {
+  await emailQueue.add('send-email', {
+    to: 'user@example.com',
+    subject: 'Hello',
+    body: 'Test email'
+  });
+  res.json({ message: 'Campaign queued' });
+});
 //===listen===
+const httpServer=createServer(app);
+const io= new Server(httpServer,{
+  cors:{
+  origin:"*",
+  methods:["GET","POST"]
+  }
+});
+  io.on('connection',(socket)=>{
+   console.log(`user connected: ${socket.id}`);
+  socket.on('disconnection',()=>{
+    console.log(`user disconnected:${socket.id}`);
+  });
 
-app.listen(PORT, '0.0.0.0', () => {
+  
+});
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server listening on port ${PORT}`);
 });
