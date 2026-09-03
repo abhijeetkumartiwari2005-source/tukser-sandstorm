@@ -1,5 +1,0 @@
-POST http://localhost:3000/notes
-{
-  "title": "My First Note",
-  "body": "This is a test note"
-}
